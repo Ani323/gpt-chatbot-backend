@@ -6,7 +6,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send('GPT Chatbot Backend is live ✅');
+  res.send('Sanna Chatbot Backend is live ✅');
 });
 
 app.listen(3000, () => console.log('Server running'));
