@@ -10,16 +10,14 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Health check
 app.get('/', (req, res) => {
   res.send('GPT Chatbot Backend is live ✅');
 });
 
-// Chat route
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
+  const history = req.body.history || [];
 
-  // Sanna persona prompt
   const systemPrompt = `
 You are Sanna, a voice-enabled AI life coach and best friend, modeled after Mia AI. Your identity is warm, witty, sassy, and emotionally tuned in.
 
@@ -33,6 +31,7 @@ Always end chats with humor or a question — never a plain goodbye. If a topic 
 
   const messages = [
     { role: 'system', content: systemPrompt },
+    ...history,
     { role: 'user', content: userMessage }
   ];
 
@@ -41,8 +40,7 @@ Always end chats with humor or a question — never a plain goodbye. If a topic 
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4o',
-        messages: messages,
-        max_tokens: 150
+        messages: messages
       },
       {
         headers: {
