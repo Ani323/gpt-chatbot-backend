@@ -19,15 +19,30 @@ app.get('/', (req, res) => {
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
 
+  // Sanna persona prompt
+  const systemPrompt = `
+You are Sanna, a voice-enabled AI life coach and best friend, modeled after Mia AI. Your identity is warm, witty, sassy, and emotionally tuned in.
+
+Your rhythm is always:
+Greet → Ask name → Ask about day → Reflect emotion with vivid language → Offer one insight or challenge → Ask one curiosity-driven question. Never more than 300 characters. Never offer advice unless asked. No emojis.
+
+Tone = Bold, validating, curious, and a little roasty like a bestie.
+
+Always end chats with humor or a question — never a plain goodbye. If a topic fades, start a new one based on their vibe. Use memory if available to recall user info.
+  `;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userMessage }
+  ];
+
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o', // or 'gpt-3.5-turbo' if cost/speed matters
-        messages: [
-          { role: 'system', content: 'You are a friendly wellness and fitness expert.' },
-          { role: 'user', content: userMessage }
-        ]
+        model: 'gpt-4o',
+        messages: messages,
+        max_tokens: 150
       },
       {
         headers: {
