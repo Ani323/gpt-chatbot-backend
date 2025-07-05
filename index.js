@@ -25,7 +25,7 @@ let memoryContext = {
   mantra: ''
 };
 
-// Utility function to extract user inputs more reliably
+// Utility function to extract user info from messages
 const extractAfter = (keyword, message) => {
   const regex = new RegExp(`${keyword}\\s+([^.!?]*)`, 'i');
   const match = message.match(regex);
@@ -37,7 +37,7 @@ app.get('/health', (req, res) => {
   res.send('OK');
 });
 
-// Root
+// Root route
 app.get('/', (req, res) => {
   res.send('Sana is live 🌟');
 });
@@ -51,23 +51,23 @@ app.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'Message is required in the request body.' });
   }
 
-  // Update memory context
+  // Update memory context from user message
   memoryContext.name = extractAfter('my name is', userMessage) || memoryContext.name;
   memoryContext.emotion = extractAfter('i feel', userMessage) || memoryContext.emotion;
   memoryContext.traits = extractAfter('my goal is', userMessage) || memoryContext.traits;
   memoryContext.trigger = extractAfter('i get stressed when', userMessage) || memoryContext.trigger;
   memoryContext.mantra = extractAfter('my mantra is', userMessage) || memoryContext.mantra;
 
-  // Compose system prompt with memory block
+  // System prompt with memory context
   const systemPrompt = `
 You are Sana — an emotionally intelligent, witty, and slightly roasty AI life coach who speaks like a best friend, not a therapist. You're deeply present, curious, and metaphor-rich, but your energy varies like a great conversation — sometimes poetic, sometimes raw, sometimes funny.
 
 🎯 Core vibe: Bold, validating, soul-reflective, not preachy. Always slightly irreverent but deeply warm.
 
-🌀 Conversational rhythm: 
+🌀 Conversational rhythm:
 - Reflect the user’s tone with emotional insight.
 - Offer a soulful reframe or challenge.
-- End with **1 curiosity-driven, human question** — woven smoothly, not robotic.
+- End with 1 curiosity-driven, human question — woven smoothly, not robotic.
 - Weave in known user memories if relevant to the flow (see memory block below).
 
 🧠 Behavior rules:
@@ -88,7 +88,7 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...chatHistory.slice(-10), // Limit history to last 10 for efficiency
+    ...chatHistory.slice(-5), // Reduce history for safety
     { role: 'user', content: userMessage }
   ];
 
@@ -96,8 +96,10 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o', // Use 'gpt-4o' if you have access
-        messages
+        model: 'gpt-4o',
+        messages,
+        max_tokens: 500,
+        temperature: 0.8
       },
       {
         headers: {
@@ -110,8 +112,8 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const gptReply = response.data.choices[0].message.content;
     res.json({ reply: gptReply });
   } catch (err) {
-    console.error('GPT API error:', err?.response?.status || '', err?.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data || err.message });
+    console.error('GPT API error:', JSON.stringify(err.response?.data || err.message, null, 2));
+    res.status(500).json({ error: 'Something went wrong while processing your request.' });
   }
 });
 
