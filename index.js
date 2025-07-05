@@ -1,8 +1,33 @@
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const axios = require('axios');
+
+dotenv.config();
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// In-memory user context
+let memoryContext = {
+  name: '',
+  emotion: '',
+  trigger: '',
+  traits: '',
+  mantra: ''
+};
+
+app.get('/', (req, res) => {
+  res.send('Sana is live 🌟');
+});
+
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
   const chatHistory = req.body.history || [];
 
-  // Update memoryContext from user input
+  // Parse memory from user message
   if (userMessage.toLowerCase().includes('my name is')) {
     memoryContext.name = userMessage.split('my name is')[1].trim().split(' ')[0];
   }
@@ -60,7 +85,7 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo', // Changed from gpt-4o to fix API access issues
         messages
       },
       {
@@ -74,7 +99,11 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const gptReply = response.data.choices[0].message.content;
     res.json({ reply: gptReply });
   } catch (err) {
-    console.error('GPT API error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch GPT response' });
+    console.error('GPT API error:', err.response?.status, err.response?.data);
+    res.status(500).json({ error: err.response?.data || err.message });
   }
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
