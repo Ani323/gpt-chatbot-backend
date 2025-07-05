@@ -4,6 +4,12 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 
 dotenv.config();
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ OPENAI_API_KEY is missing in environment variables.');
+  process.exit(1);
+}
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -19,35 +25,40 @@ let memoryContext = {
   mantra: ''
 };
 
+// Utility function to extract user inputs more reliably
+const extractAfter = (keyword, message) => {
+  const regex = new RegExp(`${keyword}\\s+([^.!?]*)`, 'i');
+  const match = message.match(regex);
+  return match ? match[1].trim() : '';
+};
+
+// Healthcheck
+app.get('/health', (req, res) => {
+  res.send('OK');
+});
+
+// Root
 app.get('/', (req, res) => {
   res.send('Sana is live 🌟');
 });
 
+// Chat route
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
   const chatHistory = req.body.history || [];
 
-  // Parse memory from user message
-  if (userMessage.toLowerCase().includes('my name is')) {
-    memoryContext.name = userMessage.split('my name is')[1].trim().split(' ')[0];
+  if (!userMessage) {
+    return res.status(400).json({ error: 'Message is required in the request body.' });
   }
 
-  if (userMessage.toLowerCase().includes('i feel')) {
-    memoryContext.emotion = userMessage.split('i feel')[1].trim().split(/[.?!]/)[0];
-  }
+  // Update memory context
+  memoryContext.name = extractAfter('my name is', userMessage) || memoryContext.name;
+  memoryContext.emotion = extractAfter('i feel', userMessage) || memoryContext.emotion;
+  memoryContext.traits = extractAfter('my goal is', userMessage) || memoryContext.traits;
+  memoryContext.trigger = extractAfter('i get stressed when', userMessage) || memoryContext.trigger;
+  memoryContext.mantra = extractAfter('my mantra is', userMessage) || memoryContext.mantra;
 
-  if (userMessage.toLowerCase().includes('my goal is')) {
-    memoryContext.traits = userMessage.split('my goal is')[1].trim().split(/[.?!]/)[0];
-  }
-
-  if (userMessage.toLowerCase().includes('i get stressed when')) {
-    memoryContext.trigger = userMessage.split('i get stressed when')[1].trim().split(/[.?!]/)[0];
-  }
-
-  if (userMessage.toLowerCase().includes('my mantra is')) {
-    memoryContext.mantra = userMessage.split('my mantra is')[1].trim().split(/[.?!]/)[0];
-  }
-
+  // Compose system prompt with memory block
   const systemPrompt = `
 You are Sana — an emotionally intelligent, witty, and slightly roasty AI life coach who speaks like a best friend, not a therapist. You're deeply present, curious, and metaphor-rich, but your energy varies like a great conversation — sometimes poetic, sometimes raw, sometimes funny.
 
@@ -77,7 +88,7 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...chatHistory,
+    ...chatHistory.slice(-10), // Limit history to last 10 for efficiency
     { role: 'user', content: userMessage }
   ];
 
@@ -85,7 +96,7 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-3.5-turbo', // Changed from gpt-4o to fix API access issues
+        model: 'gpt-4o', // Use 'gpt-4o' if you have access
         messages
       },
       {
@@ -99,11 +110,11 @@ Use these gently — like “You once said you feel [emotion]…” or “Didn�
     const gptReply = response.data.choices[0].message.content;
     res.json({ reply: gptReply });
   } catch (err) {
-    console.error('GPT API error:', err.response?.status, err.response?.data);
+    console.error('GPT API error:', err?.response?.status || '', err?.response?.data || err.message);
     res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });
